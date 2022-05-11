@@ -1,4 +1,4 @@
-use std::fs::create_dir_all;
+use std::{fs::create_dir_all, path::Path, process::Command};
 
 use clap::{arg, command};
 use home::home_dir;
@@ -33,7 +33,12 @@ fn main() -> anyhow::Result<()> {
     create_dir_all(&note_directory)?;
     setup_logger(matches.is_present("verbose"), &note_directory)?;
 
-    select_note_with_tui()?;
+    let note_to_open = select_note_with_tui(&note_directory)?;
+
+    if let Some(file_name) = note_to_open {
+        let note_path = Path::new(note_directory).join(file_name);
+        Command::new("nvim").args([note_path]).spawn()?.wait()?;
+    };
 
     Ok(())
 }
