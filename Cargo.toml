@@ -2,15 +2,17 @@
 name = "notemd"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+authors = ["Maximilian Schmidt <maximilian@schmidt.so>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/schmidma/NoteMD"
 
 [dependencies]
 anyhow = "1.0.57"
 chrono = "0.4.19"
 clap = { version = "3.1.18", features = ["derive", "cargo"] }
 crossterm = "0.23.2"
-fern = { version = "0.6.1", features = ["colored"] }
+fern = "0.6.1"
 home = "0.5.3"
 log = "0.4.17"
 tui = "0.18.0"
