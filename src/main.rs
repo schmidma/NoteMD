@@ -3,9 +3,10 @@ use std::fs::create_dir_all;
 use clap::{arg, command};
 use home::home_dir;
 
-use crate::logging::setup_logger;
+use crate::{logging::setup_logger, tui_select::select_note_with_tui};
 
 mod logging;
+mod tui_select;
 
 fn get_default_notes_directory() -> String {
     home_dir()
@@ -31,5 +32,8 @@ fn main() -> anyhow::Result<()> {
     let note_directory = matches.value_of("note-directory").unwrap();
     create_dir_all(&note_directory)?;
     setup_logger(matches.is_present("verbose"), &note_directory)?;
+
+    select_note_with_tui()?;
+
     Ok(())
 }
