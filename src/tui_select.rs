@@ -1,4 +1,7 @@
-use std::{fs::read_dir, io, path::Path};
+use std::{
+    io,
+    path::{Path, PathBuf},
+};
 
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
@@ -15,27 +18,29 @@ use tui::{
 };
 use unicode_width::UnicodeWidthStr;
 
+use crate::search::{search_for_files, SearchResult};
+
 enum InputMode {
     Select,
     Input,
 }
 
-struct App {
+struct App<'a> {
+    notes_directory: &'a Path,
     input_mode: InputMode,
     search_string: String,
-    search_results: Vec<String>,
+    search_results: Vec<SearchResult>,
     list_state: ListState,
-    files: Vec<String>,
 }
 
-impl App {
-    fn new(files: Vec<String>) -> Self {
+impl<'a> App<'a> {
+    fn new(notes_directory: &'a Path) -> Self {
         Self {
+            notes_directory,
             input_mode: InputMode::Input,
             search_string: String::new(),
             search_results: Vec::new(),
             list_state: ListState::default(),
-            files,
         }
     }
 
@@ -78,12 +83,16 @@ impl App {
     }
 
     fn search(&mut self) {
-        let matched = self
-            .files
-            .iter()
-            .filter(|file| self.search_string.is_empty() || file.contains(&self.search_string))
-            .cloned()
-            .collect();
+        let matched = match search_for_files(self.notes_directory, &self.search_string) {
+            Ok(matched) => matched,
+            Err(error) => {
+                error!(
+                    "Failed to search with string '{}' in notes directory: {}",
+                    self.search_string, error
+                );
+                return;
+            }
+        };
         self.search_results = matched;
     }
 }
@@ -124,7 +133,8 @@ where
     let items: Vec<_> = app
         .search_results
         .iter()
-        .map(|result| ListItem::new(result.as_str()))
+        .filter_map(|result| result.file_stem())
+        .map(ListItem::new)
         .collect();
     let result = List::new(items)
         .block(Block::default().title("Notes").borders(Borders::ALL))
@@ -140,36 +150,7 @@ where
     frame.render_stateful_widget(result, chunks[1], &mut app.list_state);
 }
 
-pub fn gather_files<P>(from_directory: P) -> anyhow::Result<Vec<String>>
-where
-    P: AsRef<Path>,
-{
-    let paths = read_dir(&from_directory)?;
-    let files = paths
-        .filter_map(|path| match path {
-            Ok(path) => match path.path().strip_prefix(&from_directory) {
-                Ok(relative_path) => match relative_path.to_str() {
-                    Some(str) => Some(str.to_string()),
-                    None => {
-                        error!("Failed to decode path '{:?}'", path);
-                        None
-                    }
-                },
-                Err(error) => {
-                    error!("Failed to read path: {}", error);
-                    None
-                }
-            },
-            Err(error) => {
-                error!("Failed to strip notes directory from file: {}", error);
-                None
-            }
-        })
-        .collect();
-    Ok(files)
-}
-
-fn app_loop<B>(mut app: App, terminal: &mut Terminal<B>) -> anyhow::Result<Option<String>>
+fn app_loop<B>(mut app: App, terminal: &mut Terminal<B>) -> anyhow::Result<Option<PathBuf>>
 where
     B: Backend,
 {
@@ -216,15 +197,19 @@ where
     }
     let note_to_open = match app.input_mode {
         InputMode::Select => match app.list_state.selected() {
-            Some(i) => app.search_results.get(i).unwrap().to_string(),
-            None => format!("{}.md", app.search_string),
+            Some(i) => app.search_results.remove(i).path(),
+            None => app
+                .notes_directory
+                .join(format!("{}.md", app.search_string)),
         },
-        InputMode::Input => format!("{}.md", app.search_string),
+        InputMode::Input => app
+            .notes_directory
+            .join(format!("{}.md", app.search_string)),
     };
     Ok(Some(note_to_open))
 }
 
-pub fn select_note_with_tui<P>(notes_directory: P) -> anyhow::Result<Option<String>>
+pub fn select_note_with_tui<P>(notes_directory: P) -> anyhow::Result<Option<PathBuf>>
 where
     P: AsRef<Path>,
 {
@@ -234,8 +219,7 @@ where
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let files = gather_files(notes_directory)?;
-    let mut app = App::new(files);
+    let mut app = App::new(notes_directory.as_ref());
     app.search();
 
     let note_to_open = app_loop(app, &mut terminal)?;

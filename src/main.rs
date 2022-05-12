@@ -6,6 +6,7 @@ use home::home_dir;
 use crate::{logging::setup_logger, tui_select::select_note_with_tui};
 
 mod logging;
+mod search;
 mod tui_select;
 
 fn get_default_notes_directory() -> String {
