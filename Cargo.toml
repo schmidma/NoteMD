@@ -6,6 +6,7 @@ authors = ["Maximilian Schmidt <maximilian@schmidt.so>"]
 license = "MIT"
 readme = "README.md"
 repository = "https://github.com/schmidma/NoteMD"
+description = "A blazingly fast TUI to manage your markdown notes"
 
 [dependencies]
 anyhow = "1.0.57"
