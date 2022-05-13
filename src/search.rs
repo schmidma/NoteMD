@@ -9,7 +9,6 @@ use grep::{
     searcher::{Searcher, SearcherBuilder, Sink, SinkMatch},
 };
 use ignore::Walk;
-use log::error;
 
 #[derive(Debug)]
 struct SingleMatchSink {
@@ -43,13 +42,8 @@ pub struct SearchResult {
 }
 
 impl SearchResult {
-    fn new<P>(path: P) -> Self
-    where
-        P: AsRef<Path>,
-    {
-        Self {
-            path: path.as_ref().to_owned(),
-        }
+    fn new(path: PathBuf) -> Self {
+        Self { path }
     }
 
     pub fn file_stem(&self) -> Option<&str> {
@@ -70,36 +64,22 @@ where
     let walker = Walk::new(from_directory);
     let matched_paths = walker
         .filter_map(|result| {
-            let entry = match result {
-                Ok(entry) => entry,
-                Err(error) => {
-                    error!("Failed to walk directory entry: {}", error);
-                    return None;
-                }
-            };
+            let entry = result.ok()?;
             let path = entry.path();
-            if path.is_file() {
-                if let Some(stem) = path.file_stem() {
-                    if let Some(str) = stem.to_str() {
-                        if let Ok(true) = matcher.is_match(str.as_bytes()) {
-                            return Some(SearchResult::new(path));
-                        }
+            if !path.is_file() {
+                return None;
+            }
+            if let Some(stem) = path.file_stem() {
+                if let Some(str) = stem.to_str() {
+                    if let Ok(true) = matcher.is_match(str.as_bytes()) {
+                        return Some(SearchResult::new(path.to_path_buf()));
                     }
                 }
-                let mut sink = SingleMatchSink::new();
-                match searcher.search_path(&matcher, path, &mut sink) {
-                    Ok(_) => {
-                        if sink.has_match() {
-                            Some(SearchResult::new(path))
-                        } else {
-                            None
-                        }
-                    }
-                    Err(error) => {
-                        error!("Failed to search in path '{:?}': {}", path, error);
-                        None
-                    }
-                }
+            }
+            let mut sink = SingleMatchSink::new();
+            searcher.search_path(&matcher, path, &mut sink).ok()?;
+            if sink.has_match() {
+                Some(SearchResult::new(path.to_path_buf()))
             } else {
                 None
             }
