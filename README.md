@@ -1,3 +1,3 @@
 # NoteMD
 
-This is still work in progress.
+A blazingly fast TUI to manage your markdown notes.

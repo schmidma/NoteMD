@@ -7,6 +7,7 @@ license = "MIT"
 readme = "README.md"
 repository = "https://github.com/schmidma/NoteMD"
 description = "A blazingly fast TUI to manage your markdown notes"
+homepage = "https://github.com/schmidma/NoteMD"
 
 [dependencies]
 anyhow = "1.0.57"
