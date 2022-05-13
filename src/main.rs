@@ -1,7 +1,8 @@
-use std::{fs::create_dir_all, path::Path, process};
+use std::{env, fs::create_dir_all, path::Path, process};
 
+use anyhow::Context;
 use args::parse_args;
-use repository::{clone_repository, sync_repository};
+use repository::{clone_repository, commit_changes, is_note_changed, sync_repository};
 
 use crate::{logging::setup_logger, tui_select::select_note_with_tui};
 
@@ -31,10 +32,14 @@ fn main() -> anyhow::Result<()> {
 
             if let Some(file_name) = note_to_open {
                 let note_path = Path::new(notes_directory).join(file_name);
-                process::Command::new("nvim")
-                    .args([note_path])
+                let editor = env::var("EDITOR").context("Could not determine default editor")?;
+                process::Command::new(editor)
+                    .arg(&note_path)
                     .spawn()?
                     .wait()?;
+                if is_note_changed(notes_directory, &note_path)? {
+                    commit_changes(notes_directory, &note_path)?;
+                }
             };
         }
     };
