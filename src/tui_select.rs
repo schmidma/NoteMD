@@ -50,10 +50,11 @@ impl<'a> App<'a> {
         }
         let i = match self.list_state.selected() {
             Some(i) => {
-                if i >= self.search_results.len() - 1 {
-                    0
-                } else {
+                if i < self.search_results.len() - 1 {
                     i + 1
+                }
+                else {
+                    i
                 }
             }
             None => 0,
@@ -67,10 +68,10 @@ impl<'a> App<'a> {
         }
         let i = match self.list_state.selected() {
             Some(i) => {
-                if i == 0 {
-                    self.search_results.len() - 1
-                } else {
+                if i > 0 {
                     i - 1
+                } else {
+                    i
                 }
             }
             None => 0,
